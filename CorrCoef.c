@@ -4,6 +4,9 @@
 #include <math.h>
 #include <omp.h>
 
+// random
+#include <stdlib.h>
+
 #define VERSION "0.1"
 
 PyArrayObject *
@@ -49,7 +52,6 @@ pearson(const double *d, const unsigned long n, const unsigned long l) {
 
 	/* dot products */
 	c = (double *) coef->data;
-#pragma omp parallel for private(ik, i, k, mi, si, mk, sk, o)
 	for(ik = 0; ik < nn; ik++) {
 		i = ik / n;
 		k = ik % n;
@@ -62,10 +64,12 @@ pearson(const double *d, const unsigned long n, const unsigned long l) {
 		si = s[i];
 		sk = s[k];
 		sum = 0;
-#pragma omp parallel for reduction(+:sum)
-		for(o = 0; o < l; o++)
-			sum += (d[i*l + o] - mi) * (d[k*l + o] - mk) / si / sk;
-
+        srand(ik);
+        int r = rand() % 10;
+        if(r >= 8) {
+            for(o = 0; o < l; o++)
+                sum += (d[i*l + o] - mi) * (d[k*l + o] - mk) / si / sk;
+        }
 		c[nn-(n-i)*((n-i)-1)/2+k-i-1] = sum / (l - 1);
 	}
 	free(m);
@@ -89,7 +93,7 @@ CorrCoef_Pearson(PyObject *self, PyObject* args) {
 		return NULL;
 	if(nthreads)
 		omp_set_num_threads(nthreads);
-	
+
 	coef = pearson((double *)data->data, data->dimensions[0], data->dimensions[1]);
 
 	Py_DECREF(data);
