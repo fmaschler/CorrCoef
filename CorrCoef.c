@@ -10,7 +10,7 @@
 #define VERSION "0.1"
 
 PyArrayObject *
-pearson(const double *d, const unsigned long n, const unsigned long l) {
+pearson(const double *d, const unsigned long n, const unsigned long l, const float r) {
 	PyArrayObject *coef;
 	double *c;
 	unsigned long *dim;
@@ -65,8 +65,8 @@ pearson(const double *d, const unsigned long n, const unsigned long l) {
 		sk = s[k];
 		sum = 0;
         srand(ik);
-        int r = rand() % 10;
-        if(r >= 8) {
+        float coin = (float)rand()/(float)RAND_MAX;
+        if(r >= coin) {
             for(o = 0; o < l; o++)
                 sum += (d[i*l + o] - mi) * (d[k*l + o] - mk) / si / sk;
         }
@@ -83,9 +83,11 @@ CorrCoef_Pearson(PyObject *self, PyObject* args) {
 	PyObject *arg;
 	PyArrayObject *data, *coef;
 	int nthreads;
+    float randomness;
 
 	nthreads = 0;
-	if(!PyArg_ParseTuple(args, "O|I", &arg, &nthreads))
+    randomness = 1;
+	if(!PyArg_ParseTuple(args, "O|If", &arg, &nthreads, &randomness))
 		return NULL;
 	data = (PyArrayObject *) PyArray_ContiguousFromObject(arg,
 		PyArray_DOUBLE, 2, 2);
@@ -94,7 +96,7 @@ CorrCoef_Pearson(PyObject *self, PyObject* args) {
 	if(nthreads)
 		omp_set_num_threads(nthreads);
 
-	coef = pearson((double *)data->data, data->dimensions[0], data->dimensions[1]);
+	coef = pearson((double *)data->data, data->dimensions[0], data->dimensions[1], randomness);
 
 	Py_DECREF(data);
 	return PyArray_Return(coef);
@@ -102,7 +104,7 @@ CorrCoef_Pearson(PyObject *self, PyObject* args) {
 
 static PyMethodDef CorrCoef_methods[] = {
 	{"Pearson", CorrCoef_Pearson, METH_VARARGS,
-	 "triu_corr = Pearson(data, num_threads)\n\nReturn Pearson product-moment correlation coefficients.\n\nParameters\n----------\ndata : array_like\nA 2-D array containing multiple variables and observations. Each row of `data` represents a variable, and each column a single observation of all those variables.\n\nnum_threads : int, optional\nThe maximum number of OpenMP threads used.\n\nReturns\n-------\ntriu_corr : ndarray\nThe upper triangle of the correlation coefficient matrix of the variables.\n"},
+	 "triu_corr = Pearson(data, num_threads, percent_correlations)\n\nReturn Pearson product-moment correlation coefficients.\n\nParameters\n----------\ndata : array_like\nA 2-D array containing multiple variables and observations. Each row of `data` represents a variable, and each column a single observation of all those variables.\n\nnum_threads : int, optional\nThe maximum number of OpenMP threads used.\npercent_correlations : float, optional\n The percentage of correlations to calculate (<1: heuristic).\nReturns\n-------\ntriu_corr : ndarray\nThe upper triangle of the correlation coefficient matrix of the variables.\n"},
 	{NULL, NULL, 0, NULL}
 };
 
