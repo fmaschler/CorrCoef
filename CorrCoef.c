@@ -6,6 +6,7 @@
 
 // random
 #include <stdlib.h>
+#include <time.h>
 
 #define VERSION "0.1"
 
@@ -19,6 +20,12 @@ pearson(const double *d, const unsigned long n, const unsigned long l, const flo
 	double mk, sk, dk, h;
 	double mi, si, sum;
 	double *m, *s;
+    float coin;
+    int coins[omp_get_max_threads()];
+    int max_rand = 100;
+    srand(time(NULL));
+    for (i=0;i<omp_get_max_threads();i++)
+        coins[i] = rand() % max_rand;
 
 	nn = n * (n - 1) / 2;
 	dim = malloc(sizeof(unsigned long));
@@ -52,6 +59,7 @@ pearson(const double *d, const unsigned long n, const unsigned long l, const flo
 
 	/* dot products */
 	c = (double *) coef->data;
+    #pragma omp parallel for private(ik, i, k, mi, si, mk, sk, o, coin)
 	for(ik = 0; ik < nn; ik++) {
 		i = ik / n;
 		k = ik % n;
@@ -64,12 +72,17 @@ pearson(const double *d, const unsigned long n, const unsigned long l, const flo
 		si = s[i];
 		sk = s[k];
 		sum = 0;
-        srand(ik);
-        float coin = (float)rand()/(float)RAND_MAX;
-        if(r >= coin) {
+        coin = coins[omp_get_thread_num()];
+        if((r * max_rand) >= coin) {
+            #pragma omp parallel for reduction(+:sum)
             for(o = 0; o < l; o++)
                 sum += (d[i*l + o] - mi) * (d[k*l + o] - mk) / si / sk;
         }
+        else {
+            printf("random%d", coin);
+        }
+        coin = (int)(coin * 3489 + 234) % max_rand;
+        coins[omp_get_thread_num()] = coin;
 		c[nn-(n-i)*((n-i)-1)/2+k-i-1] = sum / (l - 1);
 	}
 	free(m);
