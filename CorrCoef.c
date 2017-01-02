@@ -108,24 +108,34 @@ static PyMethodDef CorrCoef_methods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-void
-initCorrCoef(void) {
-	PyObject *m;
-	PyObject *v;
+#if PY_MAJOR_VERSION >= 3
+  #define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
+  #define MOD_SUCCESS_VAL(val) val
+  #define MOD_DEF(ob, name, doc, methods) \
+          static struct PyModuleDef moduledef = { \
+            PyModuleDef_HEAD_INIT, name, doc, -1, methods, }; \
+          ob = PyModule_Create(&moduledef);
+#else
+  #define MOD_INIT(name) void init##name(void)
+  #define MOD_SUCCESS_VAL(val)
+  #define MOD_DEF(ob, name, doc, methods) \
+          ob = Py_InitModule3(name, methods, doc);
+#endif
 
-	v = Py_BuildValue("s", VERSION);
-	PyImport_AddModule("CorrCoef");
-	m = Py_InitModule3("CorrCoef", CorrCoef_methods,
-	"Correlation coefficients.");
-	PyModule_AddObject(m, "__version__", v);
-	import_array();
+MOD_INIT(CorrCoef)
+{
+    PyObject *m;
+    MOD_DEF(m, "CorrCoef", "Correlation coefficients.",
+            CorrCoef_methods)
+    import_array(); // numpy import
+    return MOD_SUCCESS_VAL(m);
 }
 
 int
 main(int argc, char **argv) {
 	Py_SetProgramName(argv[0]);
 	Py_Initialize();
-	initCorrCoef();
+    PyImport_ImportModule("CorrCoef");
 	Py_Exit(0);
 	return 0;
 }
